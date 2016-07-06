@@ -359,13 +359,19 @@ drbd_set_status_variables() {
 	DRBD_DSTATE_LOCAL=()
 	DRBD_DSTATE_REMOTE=()
 
-	if $DRBD_HAS_MULTI_VOLUME ; then
-		out="$($DRBDSETUP sh-status "$DRBD_RESOURCE")" && eval "$out"
-	else
-		# without "MULTI_VOLUME", the DRBD_DEVICES array
-		# should contain exactly one value
-		out="$($DRBDSETUP "$DRBD_DEVICES" sh-status)" && eval "$out"
-	fi
+	while : ; do
+		read -r tmp_resource tmp_nodeid tmp_role tmp_suspended
+		DRBD_ROLE_LOCAL[0]=${tmp_role#role:}
+		read -r tmp_volume tmp_minor tmp_dstate tmp_blocked
+		DRBD_DSTATE_LOCAL[0]=${tmp_dstate#disk:}
+		read -r tmp_remotenode tmp_remotenodeid tmp_remoteconnected tmp_remoterole tmp_remotecongested
+		DRBD_CSTATE[0]=${tmp_remoteconnected#connection:}
+		DRBD_ROLE_REMOTE[0]=${tmp_remoterole#role:}
+		read -r tmp_remotevolume tmp_replication tmp_remotedstate tmp_resync
+		DRBD_DSTATE_REMOTE[0]=${tmp_remotedstate#peer-disk:}
+		break
+	done < <($DRBDSETUP status $DRBD_RESOURCE --verbose)
+
 
 	# if there was no output at all, or a weird output
 	# make sure the status arrays won't be empty.
